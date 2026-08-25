@@ -7,6 +7,12 @@ dependencies = [
     "rich>=13",
 ]
 
+# Only needed for make_speech(), which generates spoken alert files. Everything else
+# works without it, and sound.py degrades quietly when it is missing.
+#   pip install "watchlib[speech]"
+[project.optional-dependencies]
+speech = ["gtts"]
+
 [build-system]
 requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"

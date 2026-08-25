@@ -26,15 +26,17 @@ def format_number(value):
     return f"{value:.6f}"
 
 
-def format_change(percentage, decimals=1):
+def format_change(percentage, decimals=0):
     """
     Percentage change as (text, colour name).
 
-    The sign is always shown so a rise never reads as a plain number, and the colour
-    is decided here rather than at each call site.
+    No plus sign: a minus already marks a fall, so anything without one is a rise.
+    No decimals by default either - at a glance "8%" reads faster than "8.3%", and
+    the extra digit never changes a decision. Colour is decided here rather than at
+    each call site.
     """
     if percentage > 0:
-        return f"(+{percentage:.{decimals}f}%)", "green"
+        return f"({percentage:.{decimals}f}%)", "green"
     if percentage < 0:
         return f"({percentage:.{decimals}f}%)", "red"
     return "(0%)", "silver"

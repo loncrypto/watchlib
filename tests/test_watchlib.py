@@ -64,13 +64,19 @@ def test_format_number_scales_precision():
     assert format_number(0) == "0"
 
 
-def test_format_change_shows_sign_and_color():
+def test_format_change_marks_falls_only():
+    # A minus already says "down", so a rise carries no sign - and no decimals,
+    # because the extra digit never changes a decision.
     text, color = format_change(5.2)
-    assert text.startswith("(+") and color == "green"
+    assert text == "(5%)" and color == "green"
     text, color = format_change(-5.2)
-    assert text.startswith("(-") and color == "red"
+    assert text == "(-5%)" and color == "red"
     text, color = format_change(0)
-    assert color == "silver"
+    assert text == "(0%)" and color == "silver"
+
+
+def test_format_change_can_still_show_decimals():
+    assert format_change(5.25, decimals=2)[0] == "(5.25%)"
 
 
 def test_format_duration():

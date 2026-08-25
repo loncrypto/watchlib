@@ -111,13 +111,13 @@ class Watcher:
 
     def _handle_alert(self, value, change):
         self.alert_count += 1
-        message = (f"{self.label}: %{abs(change):.1f} dustu "
+        message = (f"{self.label}: %{abs(change):.0f} dustu "
                    f"({format_number(value)}) - alarm #{self.alert_count}")
         print_alert(message)
 
         # Widen the bar so a continuing slide does not alert on every single tick.
         self.alert_threshold_pct *= self.alert_backoff
-        print_info(f"    sonraki alarm esigi: %{self.alert_threshold_pct:.1f}")
+        print_info(f"    sonraki alarm esigi: %{self.alert_threshold_pct:.0f}")
 
         if self.sound_path:
             from .sound import play_sound
