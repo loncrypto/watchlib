@@ -1,0 +1,282 @@
+================================================================================
+WATCHLIB - DOKUMANTASYON
+Degisen bir sayiyi terminalde izleme kutuphanesi
+================================================================================
+
+
+1. BU KUTUPHANE NEDEN VAR
+--------------------------------------------------------------------------------
+
+unilib zincir tarafindaki tekrari cozdu. Ama projelerde bir tekrar daha vardi:
+ekrana basma. Sayilari okunakli bicimlendirme, renklendirme, "ne zaman yeni satir
+basayim" karari, alarm esikleri, Ctrl+C ile duraklatma. Bunlar bsc'de, rbh'de,
+hvm'de ve base'de neredeyse birebir kopyalanmisti.
+
+Ustelik bu kodun blockchain ile hicbir ilgisi yok. Sen bunlari Solana projende de
+kullaniyorsun. Yani bu kod chain'e degil, "bir sayiyi izleme" isine ait.
+
+watchlib bu isi ayirir. Neyi izledigini BILMEZ - ona bir sayi donduren fonksiyon
+verirsin. Bu yuzden ayni dongu bir Uniswap fiyatini da, bir Solana havuzunu da, bir
+API cevabini da izleyebilir.
+
+Neden unilib ile ayni pakete konmadi: Solana projesinin bu koda ihtiyaci var ama
+Uniswap koduna yok. Tek pakette birlestirsek, Solana tarafinda web3.py'yi ve Uniswap
+ABI'lerini bosuna surukleme durumunda kalirdik.
+
+
+2. KURULUM
+--------------------------------------------------------------------------------
+
+    pip install -e /home/l/dex/watchlib
+
+Tek bagimliligi rich (terminal renklendirme).
+
+
+3. EN BASIT KULLANIM
+--------------------------------------------------------------------------------
+
+    from watchlib import Watcher
+
+    Watcher(
+        fetch=lambda: pool.quote_buy(0.1),
+        input_amount=0.1,
+        input_label="ETH",
+        output_label="BASECAT",
+        higher_means_cheaper=True,
+        alert_threshold_pct=20,
+    ).run()
+
+Ciktisi soyle gorunur:
+
+    01:58 0.1000 ETH = 8,846 BASECAT (0%)
+    02:03 0.1000 ETH = 9,102 BASECAT (-2.8%)
+      ! BASECAT: %21.4 dustu (10,745) - alarm #1
+        sonraki alarm esigi: %30.0
+
+Dikkat edilecek nokta: fetch parametresi bir FONKSIYON. Watcher onu belirli araliklarla
+cagirir ve donen sayinin nasil hareket ettigine bakar. Sayinin ne anlama geldigini
+bilmez.
+
+
+4. EN ONEMLI PARAMETRE: higher_means_cheaper
+--------------------------------------------------------------------------------
+
+Bu parametrenin neden var oldugunu anlatmak istiyorum, cunku burasi gecmiste gercek
+bir hataya yol acti.
+
+Izledigin sayi bir FIYAT ise is basit: sayi artarsa fiyat artmistir.
+
+Ama biz genelde fiyat degil MIKTAR izliyoruz: "0.1 ETH kac token alir". Bu sayi
+artarsa, ayni para daha cok token aliyor demektir - yani token UCUZLAMISTIR. Sayi
+artmistir ama fiyat dusmustur.
+
+Bu ters cevirmeyi cagiran kodun icinde 1/x hesaplariyla yapmak tehlikelidir. Cunku
+yanlis yaparsan program hata VERMEZ. Sadece makul gorunen, ters yone bakan bir sayi
+uretir. Nitekim hvm projesindeki sell_limit.py'de tam bu oldu: fiyat formulu ters
+kurulmustu ve ancak sen ekranda absurd bir rakam gorunce fark edildi (43000 token icin
+hedef olarak 1.85 milyar WHYPE onerilmisti).
+
+Bu yuzden burada adi konmus bir parametre olarak duruyor ve iki ayri testi var.
+
+Ornekle:
+
+    relative_change(100, 108)                          -> +8.0   (sayi artti)
+    relative_change(100, 108, higher_means_cheaper=True) -> -7.4   (fiyat dustu)
+
+Ilk satir "izledigim sayi fiyatti, artti" der. Ikinci satir "izledigim sayi miktardi,
+%8 daha cok token aliyorum, demek ki fiyat %7.4 dusmus" der.
+
+
+5. IKI ESIK, IKI FARKLI IS
+--------------------------------------------------------------------------------
+
+Watcher'da iki esik vardir ve karistirilmamalidir.
+
+print_threshold_pct (varsayilan %1)
+    "Son BASILAN satirdan bu kadar oynamadiysa tekrar basma."
+    Amaci ekrani temiz tutmak. Sakin bir piyasada saniyede bir ayni satiri basmanin
+    anlami yok. Fiyat gercekten hareket ettiginde satir gelir.
+
+alert_threshold_pct (varsayilan %20)
+    "BASLANGIC degerinden bu kadar asagi duserse alarm ver."
+    Amaci dikkatini cekmek.
+
+Ikisi farkli referans noktasi kullanir: birincisi son basilan satira, ikincisi
+izlemeye basladigin ana bakar.
+
+alert_backoff (varsayilan 1.5)
+    Her alarmdan sonra alarm esigi bu carpanla genisler. %20'de bir alarm verdiyse
+    sonraki esik %30 olur. Boylece uzun suren bir dusus her tick'te alarm vermez,
+    araliklari acilarak raporlanir. Bu davranis bsc projesinden geliyordu, aynen
+    korundu.
+
+
+6. DOSYA DOSYA
+--------------------------------------------------------------------------------
+
+6.1 format.py - saf bicimlendirme
+
+Ag yok, ciktiya basma yok, durum yok. Sadece sayi alip metin veren fonksiyonlar.
+Ayri tutulmasinin sebebi test edilebilirlik: "bu sayi mantikli gorunuyor mu" sorusu
+stdout yakalamadan sinanabiliyor.
+
+    format_number(value)
+        Sayiyi buyuklugune uygun hassasiyette gosterir. Ayni satirda bir token fiyati
+        0.0000004, bir token miktari 3.000.000 olabilir; sabit ondalik sayisi
+        bunlardan birini okunmaz yapar. Bu fonksiyon her iki durumda da yaklasik ayni
+        sayida anlamli basamak birakir.
+
+        1234567     -> "1,234,567"
+        12.3456     -> "12.35"
+        0.12345     -> "0.1235"
+        0.00001234  -> "0.000012"
+
+    format_change(percentage)
+        Yuzde degisimi (metin, renk) olarak dondurur. Isaret her zaman gosterilir ki
+        bir artis duz sayi gibi okunmasin. Renk karari da burada verilir, her cagri
+        yerinde tekrar edilmez.
+
+    format_duration(seconds)
+        Kisa sure gosterimi: 45s, 12m, 3h4m.
+
+    relative_change(baseline, current, higher_means_cheaper=False)
+        Yuzde degisim. Yon parametresi 4. bolumde anlatildi. baseline sifirsa bolme
+        hatasi vermek yerine 0 doner.
+
+
+6.2 console.py - renkli cikti
+
+    Surec basina TEK bir Console nesnesi tutulur. Eski projeler her basilan satir icin
+    yeni bir tane olusturuyordu; bu her tick'te terminal tespitini bosuna tekrarlamak
+    demekti.
+
+    COLORS
+        Renk isimleri. Cagri yerleri rgb degerleri tasimak yerine ne demek istedigini
+        soyler.
+
+    print_colored(*segments)
+        (metin, renk) ciftlerini tek satir olarak basar.
+
+    activity_color(event_count)
+        Izlemenin ne kadar hareketli oldugunu renge cevirir. Sakin havuz sakin renk,
+        hareketli havuz dikkat ceken renk:
+
+            0-4   lavender
+            5-9   coral
+            10-19 turquoise
+            20+   gold
+
+    print_quote(...)
+        Standart izleme satiri: saat, ne verdin, ne aliyorsun, nasil hareket etti.
+
+    print_alert(message) / print_info(message)
+        Alarm satiri ve sonuk bilgi satiri.
+
+
+6.3 watch.py - izleme dongusu
+
+Kutuphanenin kalbi. Fiyat, token, chain diye bir sey bilmez; sayi donduren bir
+fonksiyon alir.
+
+    Watcher(fetch, ...)
+
+    Onemli parametreler:
+        fetch                 sayi donduren fonksiyon (zorunlu)
+        interval              kac saniyede bir sorulacak
+        print_threshold_pct   yeniden basma esigi
+        alert_threshold_pct   alarm esigi
+        alert_backoff         alarm sonrasi esik carpani
+        higher_means_cheaper  yon (4. bolum)
+        render                ozel cizim fonksiyonu; verilmezse standart satir basilir
+        on_alert              alarm aninda cagrilacak fonksiyon
+        sound_path            alarmda calinacak ses dosyasi
+        max_errors            ardisik hata siniri (None = sinirsiz devam)
+        max_ticks             kac tur sonra dursun (test icin faydali)
+
+    run()
+        Once ilk degeri alir - bunu alana kadar ISRAR eder, cunku referans noktasi
+        olmadan hicbir yuzde anlamli degildir. Sonra dongu:
+
+          1. fetch() cagrilir
+          2. baslangica ve son basilan degere gore degisimler hesaplanir
+          3. yeterince oynadiysa satir basilir, renk guncellenir
+          4. alarm esigi asildiysa alarm verilir ve esik genisletilir
+          5. beklenir
+
+        Ctrl+C CIKMAZ, DURAKLATIR. Duraklamisken ikinci Ctrl+C cikar. Izleme genelde
+        basindan kalkip geri donulen bir istir, kazara kaybedilmemeli.
+
+        Hatalar donguyu durdurmaz. Gecici bir RPC hatasi loglanir ve devam edilir.
+        max_errors verilirse ardisik hata sayisi asilinca durulur.
+
+    Karar metodlari (ayri tutuldu ki test edilebilsinler):
+        change_from_start(value)   baslangica gore degisim
+        change_from_last(value)    son basilan satira gore degisim
+        should_print(value)        yeni satir basilmali mi
+        should_alert(value)        alarm verilmeli mi
+
+
+6.4 sound.py - isteğe bagli sesli uyari
+
+Buradaki her sey SESSIZCE basarisiz olur. Oynatici yoksa, dosya yoksa, bir sey ters
+giderse izleme etkilenmez. Ses bir kolaylik, isin kendisi degil.
+
+    find_player()
+        Sistemde bulunan ilk komut satiri oynaticisi: mpg321, mpg123, ffplay, aplay,
+        paplay sirasiyla denenir. (bsc sadece mpg321 ariyordu; burada genellestirildi.)
+
+    play_sound(path)
+        Ses dosyasini ARKA PLANDA calar. Bloklamaz - izleme dongusu bir alarm sesinin
+        suresince beklememeli.
+
+    make_speech(text, path)
+        Konusan uyari dosyasi uretir ("cake has gone down" gibi). gtts kutuphanesi ve
+        internet gerektirir. Basarisiz olursa False doner, cagiran taraf sessiz devam
+        eder. bsc'de token eklerken bu yapiliyordu.
+
+
+7. GERCEK KULLANIM ORNEGI
+--------------------------------------------------------------------------------
+
+base projesindeki track_price.py'nin tamami (unilib ile birlikte):
+
+    from unilib import load_pool
+    from watchlib import Watcher
+
+    w3 = CHAIN.connect()
+    pool = load_pool(CHAIN, registry[symbol]["identifier"], w3=w3)
+
+    Watcher(
+        fetch=lambda: pool.quote_buy(amount),
+        input_amount=amount,
+        input_label=CHAIN.native_symbol,
+        output_label=pool.symbol,
+        higher_means_cheaper=True,
+        interval=INTERVAL,
+        alert_threshold_pct=diff,
+    ).run()
+
+Bu dosya iki kutuphane oncesinde 103 satirdi, simdi 53 satir. Icinde artik fiyat
+matematigi, renk tablosu, yuzde hesabi, dongu yonetimi yok.
+
+
+8. TEST
+--------------------------------------------------------------------------------
+
+    python tests/test_watchlib.py
+
+17 test. Ag gerektirmez, BEKLEMEZ (interval=0 ve max_ticks ile).
+
+Testlerin agirligi bilincli olarak yon mantiginda: ters cevrilmis bir degisim, hata
+vermek yerine kendinden emin yanlis bir sayi uretir ve boyle bir hata daha once
+gercekten yasandi.
+
+Test edilenler arasinda:
+    - fiyat artisi pozitif, dususu negatif
+    - daha cok token = ucuzlama (yon parametresi)
+    - yon parametresinin isareti gercekten cevirdigi
+    - sakin piyasada tekrar satir basilmadigi
+    - alarmin esik asilinca verildigi, asilmayinca verilmedigi
+    - alarm esiginin her alarmdan sonra genisledigi
+    - gecici hatalarin donguyu durdurmadigi
+    - sifir baslangic degerinin cokme yaratmadigi
