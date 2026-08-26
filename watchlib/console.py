@@ -49,24 +49,32 @@ def activity_color(event_count):
     return "lavender"
 
 
-def print_quote(amount_in, label_in, amount_out, label_out, change, color="lavender",
-                timestamp=None):
+def print_quote(amount_in, label_in, amount_out, label_out, change=None, color="lavender",
+                timestamp=None, target=None):
     """
-    One watch line: time, what goes in, what comes out, how it moved.
+    One watch line: time, what goes in, what comes out, and a trailing note.
 
-        14:23 0.10 ETH = 877.53 BASECAT (-2.0%)
+        14:23 0.10 ETH = 877.53 BASECAT (-2%)      change given
+        14:23 1.00 HYPE = 33,780 CHAMELEON (36,666) target given
+
+    Pass `target` for limit orders: while waiting for a number to be reached, the
+    number you are waiting for is more use than the distance to it.
     """
     import time
 
     stamp = timestamp or time.strftime("%H:%M")
-    change_text, change_color = format_change(change)
+    if target is not None:
+        note, note_color = f"({format_number(target)})", "silver"
+    else:
+        note, note_color = format_change(change or 0)
+
     print_colored(
         (f"{stamp} ", "silver"),
         (f"{format_number(amount_in)} ", color),
         (f"{label_in} = ", "silver"),
         (f"{format_number(amount_out)} ", color),
         (f"{label_out} ", "silver"),
-        (change_text, change_color),
+        (note, note_color),
     )
 
 

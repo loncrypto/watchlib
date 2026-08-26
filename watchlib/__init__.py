@@ -24,7 +24,13 @@ from .console import (
     print_info,
     print_quote,
 )
-from .format import format_change, format_duration, format_number, relative_change
+from .format import (
+    format_change,
+    format_duration,
+    format_number,
+    parse_amount,
+    relative_change,
+)
 from .sound import find_player, make_speech, play_sound
 from .watch import Watcher
 
@@ -40,6 +46,7 @@ __all__ = [
     "print_quote",
     "format_change",
     "format_duration",
+    "parse_amount",
     "format_number",
     "relative_change",
     "find_player",

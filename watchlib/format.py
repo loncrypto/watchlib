@@ -42,6 +42,39 @@ def format_change(percentage, decimals=0):
     return "(0%)", "silver"
 
 
+SUFFIXES = {"k": 10**3, "m": 10**6, "b": 10**9, "t": 10**12}
+
+
+def parse_amount(text):
+    """
+    Read a hand-typed amount, the way people actually type them.
+
+        "36666"    -> 36666.0
+        "36,666"   -> 36666.0
+        "36.6k"    -> 36600.0
+        "2M"       -> 2000000.0
+        "1.5b"     -> 1500000000.0
+        "-1"       -> -1.0      (callers use this for "all")
+
+    Typing out fifteen zeros for a meme-coin amount invites a mistake that costs real
+    money, so the shorthand is a safety feature as much as a convenience.
+    Raises ValueError on anything unparseable.
+    """
+    text = str(text).strip().replace(",", "").replace("_", "")
+    if not text:
+        raise ValueError("bos deger")
+
+    multiplier = 1
+    if text[-1].lower() in SUFFIXES:
+        multiplier = SUFFIXES[text[-1].lower()]
+        text = text[:-1]
+
+    try:
+        return float(text) * multiplier
+    except ValueError:
+        raise ValueError(f"sayi olarak okunamadi: {text!r}")
+
+
 def format_duration(seconds):
     """Compact elapsed time: 45s, 12m, 3h4m."""
     seconds = int(seconds)
