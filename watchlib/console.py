@@ -22,7 +22,14 @@ COLORS = {
     "coral": "rgb(255,127,80)",
     "turquoise": "rgb(64,224,208)",
     "gold": "rgb(255,215,0)",
+    "magenta": "rgb(255,105,180)",
 }
+
+# Colour by what a script is doing, so a glance at the terminal tells you which one
+# is running. Two limit orders side by side otherwise look identical.
+BUY_COLOR = "magenta"
+SELL_COLOR = "turquoise"
+WATCH_COLOR = "lavender"
 
 # Escalating colours for how busy a watch has been - the calmer the pool, the calmer
 # the line. Ordered from most to least active; the first threshold met wins.

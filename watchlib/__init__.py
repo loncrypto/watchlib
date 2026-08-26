@@ -17,7 +17,10 @@ Nothing here is chain-specific, so the same loop works for a Solana pool, an API
 response, or anything else worth watching drift.
 """
 from .console import (
+    BUY_COLOR,
     COLORS,
+    SELL_COLOR,
+    WATCH_COLOR,
     activity_color,
     print_alert,
     print_colored,
@@ -39,6 +42,9 @@ __version__ = "0.1.0"
 __all__ = [
     "Watcher",
     "COLORS",
+    "BUY_COLOR",
+    "SELL_COLOR",
+    "WATCH_COLOR",
     "activity_color",
     "print_alert",
     "print_colored",
